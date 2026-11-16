@@ -53,17 +53,32 @@ Taken from it: photo, headline, lower panel, page dots, one button.
 | 2 | QR at the till carries the real basket (`MagnitGo/Core/BasketQR.swift`) | Done |
 | 3 | UX-laws audit fixes: boxed sign-in fields, points before the QR, scan beep and confirmation, newest-first basket, store picker | Done |
 | 4 | Untitled UI PRO solid icons everywhere | Done |
-| 5 | Product photos: 12 cut-outs in `Assets.xcassets/Products` (sources in `reference/photo-credits.md`) | Photos added, not yet shown in the app |
-| 6 | Product descriptions and photo names in the catalogue | Data added, not yet shown in the app |
-| 7 | Photo on every basket and scanner row | Next |
-| 8 | Product window for each product, opened from a basket row | Next |
-| 9 | "Bought before" row of products on home | Next |
-| 10 | Welcome screens before sign-in: 3 pages, photos in `Assets.xcassets/Welcome` | Photos added, screens next |
-| 11 | Rounded type and pill buttons outside the cheque | Next |
-| 12 | Check every changed screen in the simulator, then on the iPhone | After 7–11 |
+| 5 | Product photos: 12 cut-outs in `Assets.xcassets/Products` (sources in `reference/photo-credits.md`), shown through `ProductPhoto` in `Core/Theme.swift` | Written, not built yet |
+| 6 | Product descriptions and photo names in the catalogue | Shown in the product window |
+| 7 | Photo on every basket and scanner row (`EditableLine`) | Written, not built yet |
+| 8 | Product window (`Views/ProductScreen.swift`), opened from a basket row's photo or name | Written, not built yet |
+| 9 | "Bought before" row of products on home, opens the product window | Written, not built yet |
+| 10 | Welcome screens before sign-in (`Views/WelcomeView.swift`): 3 pages, shown once | Written, not built yet |
+| 11 | Rounded type (`Font.ui`) and pill buttons outside the cheque; `Font.paper` keeps the cheque's face | Written, not built yet |
+| 12 | Pack details in the product window: calories, protein, fat, carbs per 100 g (100 ml for drinks), ingredients, shelf life, country (`Catalog.facts`, demo values) | Written, not built yet |
+| 13 | Build, then check every changed screen in the simulator, then on the iPhone | Next, on a Mac |
+
+## Decisions in this round
+
+- **Photos only on the editable basket.** Basket rows and the scanner slip show a photo. The QR screen and paid receipts stay text-only, so the cheque that is shown and kept is unchanged.
+- **No "Add to cart" in the product window.** Nothing reaches the basket without a scan: marked drinks need each bottle's code, weighed goods need the scale label. From the basket, the window edits that line with the cheque's own rules. From home, it says how the product is scanned and offers "Start scanning".
+- **Pack details are typical values, not read off real packs.** Manufacturer is left empty rather than invented; the screen shows it once the price list supplies it.
+- **Welcome button arrow** uses `chevron-right` until an arrow-right icon is exported from the Untitled UI PRO package.
+
+## How to check
+
+- `-resetState` shows the welcome pages, then sign-in.
+- `-demoBasket` with "Start scanning" fills a basket; open it and tap a line's name for the product window.
+- Home shows "Bought before" from the seeded history; tap a card.
 
 ## Not verified yet
 
 - Reading real marking codes off a bottle with the phone camera.
 - The scan beep (chosen by name, never heard).
-- Russian on the screens changed since the last check.
+- Russian on the screens changed since the last check, including the welcome pages and the product window.
+- Anything from items 5–12: this round was written without a compiler.

@@ -97,7 +97,7 @@ struct ScannerScreen: View {
                     Steps(labels: app.flowSteps, current: 0)
                         .padding(.horizontal, 12)
                         .frame(height: 44)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(.ultraThinMaterial, in: Capsule())
                     Spacer()
                     if usesDemoCodes {
                         // Keeps the steps centred where there is no torch.
@@ -172,7 +172,7 @@ struct ScannerScreen: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Theme.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .background(Theme.raised, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                     .accessibilityIdentifier("scanNotice")
                 } else if cameraUnavailable {
                     Button(app.t("Kameraga ruxsat berish", "Разрешить доступ к камере")) {
@@ -269,9 +269,9 @@ struct ScannerScreen: View {
             Text(title)
                 .font(.ui(14))
                 .foregroundStyle(Theme.text)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 14)
                 .frame(height: 36)
-                .background(Theme.raised, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(Theme.raised, in: Capsule())
                 .frame(height: 44)
                 .contentShape(Rectangle())
         }
@@ -381,9 +381,9 @@ struct ScanSlip: View {
                     HStack(spacing: 8) {
                         IconView(.cart, size: 18)
                         Text(app.t("Savatni ko‘rish", "Открыть корзину"))
-                            .font(.ui(15, .medium))
+                            .font(.paper(15, .medium))
                         Text(app.itemsText(app.itemCount))
-                            .font(.ui(15))
+                            .font(.paper(15))
                             .foregroundStyle(Theme.inkDim)
                         Spacer()
                         IconView(.chevronUp, size: 18)
@@ -396,10 +396,10 @@ struct ScanSlip: View {
                 .accessibilityIdentifier("openBasket")
             } else {
                 Text(app.t("Savat bo‘sh", "Корзина пуста"))
-                    .font(.ui(16, .medium))
+                    .font(.paper(16, .medium))
                 Text(app.t("Birinchi mahsulotni skanerlang: nomi va narxi shu yerda chiqadi",
                            "Отсканируйте первый товар: название и цена появятся здесь"))
-                    .font(.ui(14))
+                    .font(.paper(14))
                     .foregroundStyle(Theme.inkDim)
                     .padding(.top, 4)
                     .accessibilityIdentifier("emptyBasket")
@@ -411,22 +411,45 @@ struct ScanSlip: View {
     }
 }
 
-/// The whole receipt so far, every line still editable.
+/// A basket line opened in its product window. The product travels with the route so
+/// the window can still say what it was after the line is removed.
+struct OpenedLine: Hashable {
+    let id: UUID
+    let product: Product
+}
+
+/// The whole receipt so far, every line still editable. A line's photo or name opens
+/// its product window on top.
 struct BasketSheet: View {
     @Environment(AppState.self) private var app
     @Environment(\.dismiss) private var dismiss
     let checkout: () -> Void
+    @State private var path: [OpenedLine] = []
 
     var body: some View {
+        NavigationStack(path: $path) {
+            receipt
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(for: OpenedLine.self) { opened in
+                    ProductScreen(product: opened.product, mode: .inBasket(opened.id), close: {
+                        if !path.isEmpty { path.removeLast() }
+                    })
+                    .toolbar(.hidden, for: .navigationBar)
+                }
+        }
+    }
+
+    private var receipt: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 4) {
                 Text(app.t("Savat", "Корзина"))
                     .font(.ui(28, .medium))
                     .foregroundStyle(Theme.text)
-                Text(app.t("Miqdorni o‘zgartiring yoki mahsulotni o‘chiring",
-                           "Измените количество или удалите товар"))
+                Text(app.t("Miqdorni o‘zgartiring yoki mahsulotni o‘chiring. Mahsulot haqida bilish uchun nomini bosing",
+                           "Измените количество или удалите товар. Нажмите на название, чтобы узнать о товаре"))
                     .font(.ui(15))
                     .foregroundStyle(Theme.text2)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 12)
 
                 Paper(tornTop: true) {
@@ -434,12 +457,17 @@ struct BasketSheet: View {
                     ReceiptRule().padding(.vertical, 12)
 
                     if app.basket.isEmpty {
-                        Text(app.t("Savat bo‘sh", "Корзина пуста")).font(.ui(16))
+                        Text(app.t("Savat bo‘sh", "Корзина пуста")).font(.paper(16))
                     } else {
                         // Newest first: the item just scanned is the one most likely
                         // to need fixing.
                         VStack(spacing: 8) {
-                            ForEach(app.basket) { EditableLine(line: $0) }
+                            ForEach(app.basket) { line in
+                                EditableLine(line: line, open: {
+                                    Haptics.tap()
+                                    path.append(OpenedLine(id: line.id, product: line.product))
+                                })
+                            }
                         }
                         ReceiptRule().padding(.vertical, 12)
                         VStack(spacing: 8) {
@@ -456,6 +484,7 @@ struct BasketSheet: View {
             .animation(Theme.ease, value: app.basket.map(\.id))
         }
         .scrollIndicators(.hidden)
+        .background(Theme.bg.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 8) {
                 UndoBar()

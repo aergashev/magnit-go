@@ -66,7 +66,7 @@ struct ReceiptHeader: View {
         HStack(spacing: 12) {
             LogoMark(size: 36)
             VStack(alignment: .leading, spacing: 2) {
-                Text(store ?? app.storeName).font(.ui(15, .medium))
+                Text(store ?? app.storeName).font(.paper(15, .medium))
                 Text(detail).font(.mono(12)).foregroundStyle(Theme.inkDim)
             }
         }
@@ -89,7 +89,7 @@ struct ReceiptRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(label)
-                .font(.ui(total ? 17 : 15, total ? .medium : .regular))
+                .font(.paper(total ? 17 : 15, total ? .medium : .regular))
                 .lineLimit(1)
             Spacer(minLength: 8)
             Text(value)
@@ -109,7 +109,7 @@ struct ReceiptLine: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(app.name(line.product)).font(.ui(15))
+                Text(app.name(line.product)).font(.paper(15))
                 Text(app.detail(line)).font(.mono(12)).foregroundStyle(Theme.inkDim)
             }
             Spacer(minLength: 8)
@@ -119,26 +119,25 @@ struct ReceiptLine: View {
     }
 }
 
-/// A line that can still be changed. The controls sit on the line they change.
+/// A line that can still be changed. The controls sit on the line they change. With
+/// `open`, the photo and name lead to the product's own window.
 struct EditableLine: View {
     @Environment(AppState.self) private var app
     let line: BasketLine
+    var open: (() -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(app.name(line.product)).font(.ui(16))
-                Text(app.detail(line)).font(.mono(13)).foregroundStyle(Theme.inkDim)
-                if line.isMarked {
-                    // Says why this line has no plus.
-                    Text(app.t("Yana bir shisha uchun uning kodini ham skanerlang",
-                               "Ещё одна бутылка: отсканируйте и её код"))
-                        .font(.ui(12))
-                        .foregroundStyle(Theme.inkDim)
-                        .fixedSize(horizontal: false, vertical: true)
+            if let open {
+                Button(action: open) {
+                    identity.contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityHint(app.t("Mahsulot haqida", "О товаре"))
+                .accessibilityIdentifier("open-\(line.product.id)")
+            } else {
+                identity
             }
-            .accessibilityElement(children: .combine)
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 0) {
                 Text(app.number(line.total))
@@ -149,11 +148,39 @@ struct EditableLine: View {
         }
         .animation(Theme.easeFast, value: line.qty)
     }
+
+    /// Photo, name, how it was counted.
+    private var identity: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ProductPhoto(product: line.product, size: 44)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(app.name(line.product))
+                    .font(.paper(16))
+                    .multilineTextAlignment(.leading)
+                Text(app.detail(line)).font(.mono(13)).foregroundStyle(Theme.inkDim)
+                if line.isMarked {
+                    // Says why this line has no plus.
+                    Text(app.t("Yana bir shisha uchun uning kodini ham skanerlang",
+                               "Ещё одна бутылка: отсканируйте и её код"))
+                        .font(.paper(12))
+                        .foregroundStyle(Theme.inkDim)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
 }
 
+/// Quantity controls for one line. On the cheque they are printed in ink; off it
+/// (the product window) they are a graphite pill the height of the main button.
 struct PaperStepper: View {
     @Environment(AppState.self) private var app
     let line: BasketLine
+    var onPaper = true
+
+    private var ink: Color { onPaper ? Theme.ink : Theme.text }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -162,8 +189,10 @@ struct PaperStepper: View {
                     app.decrement(line)
                 }
                 Text("\(line.qty)")
-                    .font(.mono(15))
+                    .font(onPaper ? Font.mono(15) : Font.ui(17, .medium).monospacedDigit())
+                    .foregroundStyle(ink)
                     .frame(minWidth: 20)
+                    .contentTransition(.numericText(value: Double(line.qty)))
                 // Another marked bottle means another code to scan, so there is no plus.
                 if !line.isMarked {
                     control(.plus, label: app.t("Ko‘paytirish", "Добавить"), id: "plus") {
@@ -179,12 +208,17 @@ struct PaperStepper: View {
                 }
             }
         }
-        .frame(height: 44)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Theme.rule, lineWidth: 1)
-                .padding(.vertical, 4)
-        )
+        .frame(height: onPaper ? 44 : 52)
+        .padding(.horizontal, onPaper ? 0 : 4)
+        .background {
+            if onPaper {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Theme.rule, lineWidth: 1)
+                    .padding(.vertical, 4)
+            } else {
+                Capsule().fill(Theme.raised)
+            }
+        }
     }
 
     private func control(_ icon: Icon, label: String, id: String, action: @escaping () -> Void) -> some View {
@@ -193,7 +227,7 @@ struct PaperStepper: View {
             action()
         } label: {
             IconView(icon, size: 18)
-                .foregroundStyle(Theme.ink)
+                .foregroundStyle(ink)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
@@ -241,7 +275,7 @@ struct PaidReceipt: View {
                 ReceiptRule().padding(.vertical, 12)
                 VStack(spacing: 8) {
                     Text(app.t("Chiqishda shu QR-kodni ko‘rsating", "Покажите этот QR на выходе"))
-                        .font(.ui(15, .medium))
+                        .font(.paper(15, .medium))
                     QRView(payload: "MAGNITGO:PAID:\(receipt.code)")
                         .frame(width: 148, height: 148)
                 }
@@ -277,9 +311,9 @@ struct UndoBar: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("undo")
             }
-            .padding(.leading, 16)
+            .padding(.leading, 20)
             .padding(.trailing, 12)
-            .background(Theme.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(Theme.raised, in: Capsule())
             .transition(.opacity)
         }
     }

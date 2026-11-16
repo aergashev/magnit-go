@@ -322,6 +322,11 @@ final class AppState {
         t("\(count) ta mahsulot", "\(count) " + plural(count, "товар", "товара", "товаров"))
     }
 
+    /// One decimal, comma as the separator: "2,9".
+    func decimal(_ value: Double) -> String {
+        String(format: "%.1f", value).replacingOccurrences(of: ".", with: ",")
+    }
+
     func weight(_ grams: Int) -> String {
         String(format: "%.3f", Double(grams) / 1000).replacingOccurrences(of: ".", with: ",") + " " + t("kg", "кг")
     }

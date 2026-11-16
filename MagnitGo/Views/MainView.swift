@@ -1,13 +1,16 @@
 import SwiftUI
 
 /// Home: which store you are in, your cashback, how the app works (until the first
-/// purchase), your past purchases, and one action.
+/// purchase), what you bought before, your past purchases, and one action.
 struct MainView: View {
     @Environment(AppState.self) private var app
     @State private var shopping = false
     @State private var showsProfile = false
     @State private var showsStores = false
     @State private var opened: Receipt?
+    @State private var browsing: Product?
+    /// Set by a product window's "start scanning": the scanner opens once it has closed.
+    @State private var scanAfterDismiss = false
 
     var body: some View {
         ScrollView {
@@ -40,6 +43,7 @@ struct MainView: View {
 
                 balance.padding(.top, 32)
                 if !app.hasShopped { howItWorks.padding(.top, 32) }
+                if !app.boughtBefore.isEmpty { boughtBefore.padding(.top, 32) }
                 purchases.padding(.top, 32)
             }
             .padding(.horizontal, Theme.page)
@@ -62,6 +66,21 @@ struct MainView: View {
                 .padding(.top, 32)
                 .padding(.bottom, 24)
             }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Theme.bg)
+            .environment(app)
+        }
+        .sheet(item: $browsing, onDismiss: {
+            if scanAfterDismiss {
+                scanAfterDismiss = false
+                shopping = true
+            }
+        }) { product in
+            ProductScreen(product: product, mode: .browsing, close: { browsing = nil }, startScanning: {
+                scanAfterDismiss = true
+                browsing = nil
+            })
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
             .presentationBackground(Theme.bg)
@@ -167,6 +186,53 @@ struct MainView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: Bought before
+
+    /// Products from past receipts, each once, newest first. A card opens the product
+    /// window; adding still happens by scanning.
+    private var boughtBefore: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(app.t("Oldin olganlaringiz", "Вы уже покупали"))
+            ScrollView(.horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(app.boughtBefore) { product in
+                        Button {
+                            Haptics.tap()
+                            browsing = product
+                        } label: {
+                            productCard(product)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint(app.t("Mahsulot haqida", "О товаре"))
+                        .accessibilityIdentifier("bought-\(product.id)")
+                    }
+                }
+                .padding(.horizontal, Theme.page)
+            }
+            .scrollIndicators(.hidden)
+            .padding(.horizontal, -Theme.page)
+        }
+        .accessibilityIdentifier("boughtBefore")
+    }
+
+    private func productCard(_ product: Product) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ProductPhoto(product: product, size: 84)
+                .frame(width: 128, height: 112)
+                .background(Theme.raised, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            Text(app.name(product))
+                .font(.ui(14))
+                .lineLimit(2, reservesSpace: true)
+                .multilineTextAlignment(.leading)
+            Text(app.unitPrice(product))
+                .font(.ui(14, .medium).monospacedDigit())
+                .lineLimit(1)
+        }
+        .frame(width: 128, alignment: .leading)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
 

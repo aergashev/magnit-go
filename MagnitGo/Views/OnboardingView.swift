@@ -90,7 +90,7 @@ struct OnboardingView: View {
                     if focus == .phone { Caret() }
                     Text(maskedPhone.rest).foregroundStyle(Theme.text3.opacity(0.5))
                 }
-                .font(.mono(26))
+                .font(.ui(26, .medium).monospacedDigit())
                 .padding(.horizontal, 16)
                 .allowsHitTesting(false)
             }
@@ -169,7 +169,7 @@ struct OnboardingView: View {
                         let isNext = index == chars.count && focus == .code
                         ZStack {
                             if index < chars.count {
-                                Text(String(chars[index])).font(.mono(26))
+                                Text(String(chars[index])).font(.ui(26, .medium).monospacedDigit())
                             } else if isNext {
                                 Caret()
                             }

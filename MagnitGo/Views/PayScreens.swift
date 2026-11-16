@@ -88,7 +88,7 @@ struct PayScreen: View {
                             HStack(spacing: 8) {
                                 ProgressView().tint(Theme.ink)
                                 Text(app.t("Kassir skanerlashi kutilmoqda", "Ждём, пока кассир отсканирует"))
-                                    .font(.ui(14))
+                                    .font(.paper(14))
                             }
                             .accessibilityIdentifier("waitingForCashier")
                         }

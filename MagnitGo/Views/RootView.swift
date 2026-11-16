@@ -9,11 +9,15 @@ struct RootView: View {
             if app.isSignedIn {
                 MainView()
                     .transition(.opacity)
+            } else if !app.hasSeenWelcome {
+                WelcomeView()
+                    .transition(.opacity)
             } else {
                 OnboardingView()
                     .transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.25), value: app.isSignedIn)
+        .animation(.easeInOut(duration: 0.25), value: app.hasSeenWelcome)
     }
 }

@@ -42,7 +42,13 @@ enum Theme {
 }
 
 extension Font {
+    /// Everything off the paper: rounded, so the app reads as friendly rather than a till.
     static func ui(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight, design: .rounded)
+    }
+
+    /// Words printed on the cheque keep the plain face the receipt always had.
+    static func paper(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight)
     }
 
@@ -63,7 +69,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .font(.ui(16, .semibold))
             .foregroundStyle(Theme.ink)
             .frame(maxWidth: .infinity, minHeight: 52)
-            .background(Theme.text.opacity(enabled ? 1 : 0.3), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(Theme.text.opacity(enabled ? 1 : 0.3), in: Capsule())
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(Theme.easeFast, value: configuration.isPressed)
     }
@@ -75,7 +81,7 @@ struct SecondaryButtonStyle: ButtonStyle {
             .font(.ui(16, .medium))
             .foregroundStyle(Theme.text)
             .frame(maxWidth: .infinity, minHeight: 52)
-            .background(Theme.raised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(Theme.raised, in: Capsule())
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .animation(Theme.easeFast, value: configuration.isPressed)
     }
@@ -121,10 +127,12 @@ struct IconView: View {
     }
 }
 
-/// A bare 44pt icon. `overCamera` gives it a backing so it stays legible on video.
+/// A bare 44pt icon. `overCamera` gives it a backing so it stays legible on video;
+/// `filled` gives it a round backing in the page colour, for buttons over raised panels.
 struct IconButton: View {
     let icon: Icon
     var overCamera = false
+    var filled = false
     let action: () -> Void
 
     var body: some View {
@@ -134,7 +142,9 @@ struct IconButton: View {
                 .frame(width: 44, height: 44)
                 .background {
                     if overCamera {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.ultraThinMaterial)
+                        Circle().fill(.ultraThinMaterial)
+                    } else if filled {
+                        Circle().fill(Theme.bg)
                     }
                 }
                 .contentShape(Rectangle())
@@ -222,7 +232,7 @@ struct LanguageSwitch: View {
                         .font(.ui(14, .medium))
                         .foregroundStyle(app.lang == lang ? Theme.text : Theme.text3)
                         .frame(width: 44, height: 32)
-                        .background(app.lang == lang ? Theme.raised : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .background(app.lang == lang ? Theme.raised : .clear, in: Capsule())
                         .frame(height: 44)
                         .contentShape(Rectangle())
                 }
@@ -280,4 +290,31 @@ enum Haptics {
     static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
     static func warning() { UINotificationFeedbackGenerator().notificationOccurred(.warning) }
     static func tap() { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+}
+
+// MARK: - Product photos
+
+/// A product's cut-out photo from Assets.xcassets/Products, or its initial on a plain
+/// tile when it has none. Cut-outs have no background, so they sit on paper or graphite.
+struct ProductPhoto: View {
+    let product: Product
+    var size: CGFloat = 44
+
+    var body: some View {
+        Group {
+            if !product.photo.isEmpty, let image = UIImage(named: "Products/" + product.photo) {
+                Image(uiImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+            } else {
+                Text(String(product.nameUz.prefix(1)))
+                    .font(.ui(size * 0.4, .medium))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.text3.opacity(0.2), in: RoundedRectangle(cornerRadius: size * 0.25, style: .continuous))
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
 }

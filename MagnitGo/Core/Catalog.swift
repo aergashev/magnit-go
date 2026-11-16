@@ -17,6 +17,34 @@ struct Product: Identifiable, Hashable {
     var aboutRu = ""
 }
 
+/// Energy and macronutrients, per 100 g (or per 100 ml for drinks), as printed on the pack.
+struct Nutrition: Hashable {
+    let kcal: Int
+    let protein: Double
+    let fat: Double
+    let carbs: Double
+}
+
+/// What the pack says besides the name and price.
+struct ProductFacts: Hashable {
+    let nutrition: Nutrition
+    /// Nutrition is per 100 ml rather than per 100 g.
+    var perMl = false
+    /// Nil for fresh produce, which has no ingredient list.
+    var ingredientsUz: String?
+    var ingredientsRu: String?
+    let shelfLifeUz: String
+    let shelfLifeRu: String
+    let countryUz: String
+    let countryRu: String
+    /// Left empty in the demo rather than invented; the store's price list supplies it.
+    var maker: String?
+}
+
+extension Product {
+    var facts: ProductFacts? { Catalog.facts[id] }
+}
+
 /// What a scanned code resolved to.
 struct ScannedItem {
     let product: Product
@@ -110,6 +138,82 @@ enum Catalog {
         Product(id: "00031", nameUz: "Pomidor", nameRu: "Помидоры", price: 24_990, weighted: true, photo: "tomato",
                 aboutUz: "Tarozida tortiladi: narxi 1 kg uchun. Tarozi yorlig‘ini skanerlang.",
                 aboutRu: "Взвешивается на весах: цена за 1 кг. Отсканируйте этикетку с весов."),
+    ]
+
+    /// Pack details by product id. Demo data: typical values for each kind of product,
+    /// not read off a real pack. In production they come with the price list.
+    static let facts: [String: ProductFacts] = [
+        // Milk 3.2%
+        "4780000000017": ProductFacts(
+            nutrition: Nutrition(kcal: 58, protein: 2.9, fat: 3.2, carbs: 4.7), perMl: true,
+            ingredientsUz: "Normallashtirilgan sigir suti", ingredientsRu: "Молоко коровье нормализованное",
+            shelfLifeUz: "7 kun, 0…+6 °C da", shelfLifeRu: "7 суток при 0…+6 °C",
+            countryUz: "O‘zbekiston", countryRu: "Узбекистан"),
+        // Bread
+        "4780000000024": ProductFacts(
+            nutrition: Nutrition(kcal: 242, protein: 8.1, fat: 1.0, carbs: 48.8),
+            ingredientsUz: "Bug‘doy uni, suv, xamirturush, tuz", ingredientsRu: "Мука пшеничная, вода, дрожжи, соль",
+            shelfLifeUz: "3 kun", shelfLifeRu: "3 суток",
+            countryUz: "O‘zbekiston", countryRu: "Узбекистан"),
+        // Eggs
+        "4780000000031": ProductFacts(
+            nutrition: Nutrition(kcal: 157, protein: 12.7, fat: 11.5, carbs: 0.7),
+            ingredientsUz: "Tovuq tuxumi", ingredientsRu: "Яйцо куриное",
+            shelfLifeUz: "25 kun, 0…+20 °C da", shelfLifeRu: "25 суток при 0…+20 °C",
+            countryUz: "O‘zbekiston", countryRu: "Узбекистан"),
+        // Orange juice
+        "4780000000048": ProductFacts(
+            nutrition: Nutrition(kcal: 45, protein: 0.7, fat: 0.2, carbs: 10.0), perMl: true,
+            ingredientsUz: "Konsentratdan tiklangan apelsin sharbati", ingredientsRu: "Сок апельсиновый восстановленный",
+            shelfLifeUz: "12 oy; ochilgandan keyin 2 kun", shelfLifeRu: "12 месяцев; после вскрытия 2 суток",
+            countryUz: "O‘zbekiston", countryRu: "Узбекистан"),
+        // Still water
+        "4780000000055": ProductFacts(
+            nutrition: Nutrition(kcal: 0, protein: 0, fat: 0, carbs: 0), perMl: true,
+            ingredientsUz: "Ichimlik suvi", ingredientsRu: "Вода питьевая",
+            shelfLifeUz: "12 oy", shelfLifeRu: "12 месяцев",
+            countryUz: "O‘zbekiston", countryRu: "Узбекистан"),
+        // Milk chocolate
+        "4780000000062": ProductFacts(
+            nutrition: Nutrition(kcal: 535, protein: 7.6, fat: 29.7, carbs: 59.4),
+            ingredientsUz: "Shakar, kakao moyi, quruq sut, kakao massasi, emulgator (soya lesitini), vanilin",
+            ingredientsRu: "Сахар, какао-масло, молоко сухое, какао тёртое, эмульгатор (лецитин соевый), ванилин",
+            shelfLifeUz: "12 oy, +15…+21 °C da", shelfLifeRu: "12 месяцев при +15…+21 °C",
+            countryUz: "Rossiya", countryRu: "Россия"),
+        // Dutch cheese
+        "4780000000079": ProductFacts(
+            nutrition: Nutrition(kcal: 352, protein: 26.0, fat: 26.8, carbs: 0),
+            ingredientsUz: "Pasterizatsiyalangan sut, tuz, sut achitqisi, shirdon fermenti, kalsiy xlorid",
+            ingredientsRu: "Молоко пастеризованное, соль, закваска, молокосвёртывающий фермент, хлорид кальция",
+            shelfLifeUz: "60 kun, 0…+6 °C da", shelfLifeRu: "60 суток при 0…+6 °C",
+            countryUz: "Belarus", countryRu: "Беларусь"),
+        // Pasta
+        "4780000000086": ProductFacts(
+            nutrition: Nutrition(kcal: 344, protein: 10.4, fat: 1.1, carbs: 71.5),
+            ingredientsUz: "Qattiq bug‘doy navlaridan yorma, suv", ingredientsRu: "Крупка из твёрдых сортов пшеницы, вода",
+            shelfLifeUz: "24 oy", shelfLifeRu: "24 месяца",
+            countryUz: "O‘zbekiston", countryRu: "Узбекистан"),
+        // Instant coffee
+        "4780000000093": ProductFacts(
+            nutrition: Nutrition(kcal: 76, protein: 15.0, fat: 0.5, carbs: 3.0),
+            ingredientsUz: "Tabiiy eruvchan qahva", ingredientsRu: "Кофе натуральный растворимый",
+            shelfLifeUz: "24 oy", shelfLifeRu: "24 месяца",
+            countryUz: "Germaniya", countryRu: "Германия"),
+        // Bananas
+        "00017": ProductFacts(
+            nutrition: Nutrition(kcal: 96, protein: 1.5, fat: 0.5, carbs: 21.0),
+            shelfLifeUz: "Xona haroratida 5–7 kun", shelfLifeRu: "5–7 суток при комнатной температуре",
+            countryUz: "Ekvador", countryRu: "Эквадор"),
+        // Apples
+        "00023": ProductFacts(
+            nutrition: Nutrition(kcal: 47, protein: 0.4, fat: 0.4, carbs: 9.8),
+            shelfLifeUz: "Sovutgichda 1 oygacha", shelfLifeRu: "В холодильнике до 1 месяца",
+            countryUz: "O‘zbekiston", countryRu: "Узбекистан"),
+        // Tomatoes
+        "00031": ProductFacts(
+            nutrition: Nutrition(kcal: 20, protein: 1.1, fat: 0.2, carbs: 3.8),
+            shelfLifeUz: "Xona haroratida 5 kungacha", shelfLifeRu: "До 5 суток при комнатной температуре",
+            countryUz: "O‘zbekiston", countryRu: "Узбекистан"),
     ]
 
     /// What the demo buttons "scan" where there is no camera. Scale labels carry the
