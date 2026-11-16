@@ -20,8 +20,7 @@ struct MainView: View {
                             SectionLabel(app.t("Siz shu do‘kondasiz", "Вы в магазине"))
                             HStack(spacing: 6) {
                                 Text(app.storeName).font(.ui(16, .medium))
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 12))
+                                IconView(.chevronDown, size: 16)
                                     .foregroundStyle(Theme.text3)
                             }
                         }
@@ -32,7 +31,7 @@ struct MainView: View {
                     .accessibilityHint(app.t("Do‘konni o‘zgartirish", "Сменить магазин"))
                     .accessibilityIdentifier("changeStore")
                     Spacer()
-                    IconButton(icon: "person") { showsProfile = true }
+                    IconButton(icon: .user) { showsProfile = true }
                         .padding(.trailing, -12)
                         .accessibilityLabel(app.t("Profil", "Профиль"))
                         .accessibilityIdentifier("profile")
@@ -195,8 +194,7 @@ struct MainView: View {
                         }
                         Spacer(minLength: 12)
                         Text(app.money(receipt.total)).font(.ui(16).monospacedDigit())
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 13))
+                        IconView(.chevronRight, size: 16)
                             .foregroundStyle(Theme.text3)
                     }
                     .frame(minHeight: 56)
@@ -225,10 +223,12 @@ struct MainView: View {
                 Haptics.tap()
                 shopping = true
             } label: {
-                Label(app.itemCount > 0
-                      ? app.t("Xaridni davom ettirish", "Продолжить покупку")
-                      : app.t("Skanerlashni boshlash", "Начать сканировать"),
-                      systemImage: "barcode.viewfinder")
+                HStack(spacing: 8) {
+                    IconView(.scan)
+                    Text(app.itemCount > 0
+                         ? app.t("Xaridni davom ettirish", "Продолжить покупку")
+                         : app.t("Skanerlashni boshlash", "Начать сканировать"))
+                }
             }
             .buttonStyle(PrimaryButtonStyle())
             .accessibilityIdentifier("startShopping")
@@ -274,7 +274,7 @@ struct StoreSheet: View {
                         Text(store).font(.ui(16))
                         Spacer()
                         if store == app.storeName {
-                            Image(systemName: "checkmark").font(.system(size: 15))
+                            IconView(.check, size: 18)
                         }
                     }
                     .frame(minHeight: 52)

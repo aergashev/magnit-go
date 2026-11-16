@@ -62,10 +62,10 @@ struct ScannerScreen: View {
         }
 
         /// Told apart by icon, not by colour.
-        var icon: String {
+        var icon: Icon {
             switch self {
-            case .added: return "checkmark"
-            case .problem: return "exclamationmark.triangle"
+            case .added: return .check
+            case .problem: return .alert
             }
         }
     }
@@ -90,7 +90,7 @@ struct ScannerScreen: View {
 
             VStack(spacing: 0) {
                 HStack {
-                    IconButton(icon: "xmark", overCamera: true, action: close)
+                    IconButton(icon: .close, overCamera: true, action: close)
                         .accessibilityLabel(app.t("Yopish", "Закрыть"))
                         .accessibilityIdentifier("closeScanner")
                     Spacer()
@@ -103,7 +103,7 @@ struct ScannerScreen: View {
                         // Keeps the steps centred where there is no torch.
                         Color.clear.frame(width: 44, height: 44)
                     } else {
-                        IconButton(icon: torch ? "flashlight.on.fill" : "flashlight.off.fill", overCamera: true) {
+                        IconButton(icon: torch ? .flash : .flashOff, overCamera: true) {
                             Haptics.tap()
                             torch.toggle()
                         }
@@ -166,11 +166,14 @@ struct ScannerScreen: View {
 
             Group {
                 if let notice {
-                    Label(notice.text, systemImage: notice.icon)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Theme.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .accessibilityIdentifier("scanNotice")
+                    HStack(spacing: 8) {
+                        IconView(notice.icon, size: 18)
+                        Text(notice.text)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Theme.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .accessibilityIdentifier("scanNotice")
                 } else if cameraUnavailable {
                     Button(app.t("Kameraga ruxsat berish", "Разрешить доступ к камере")) {
                         if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -376,16 +379,14 @@ struct ScanSlip: View {
                 // Names the action and the thing: "see the basket", with what is in it.
                 Button(action: open) {
                     HStack(spacing: 8) {
-                        Image(systemName: "basket")
-                            .font(.system(size: 16))
+                        IconView(.cart, size: 18)
                         Text(app.t("Savatni ko‘rish", "Открыть корзину"))
                             .font(.ui(15, .medium))
                         Text(app.itemsText(app.itemCount))
                             .font(.ui(15))
                             .foregroundStyle(Theme.inkDim)
                         Spacer()
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 14))
+                        IconView(.chevronUp, size: 18)
                     }
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())

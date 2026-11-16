@@ -158,7 +158,7 @@ struct PaperStepper: View {
     var body: some View {
         HStack(spacing: 0) {
             if line.grams == nil {
-                control(line.qty > 1 ? "minus" : "trash", label: app.t("Kamaytirish", "Убавить"), id: "minus") {
+                control(line.qty > 1 ? .minus : .trash, label: app.t("Kamaytirish", "Убавить"), id: "minus") {
                     app.decrement(line)
                 }
                 Text("\(line.qty)")
@@ -166,7 +166,7 @@ struct PaperStepper: View {
                     .frame(minWidth: 20)
                 // Another marked bottle means another code to scan, so there is no plus.
                 if !line.isMarked {
-                    control("plus", label: app.t("Ko‘paytirish", "Добавить"), id: "plus") {
+                    control(.plus, label: app.t("Ko‘paytirish", "Добавить"), id: "plus") {
                         app.increment(line)
                     }
                 } else {
@@ -174,7 +174,7 @@ struct PaperStepper: View {
                 }
             } else {
                 // The weight comes from the scale label, so the only edit is removing it.
-                control("trash", label: app.t("O‘chirish", "Удалить"), id: "remove") {
+                control(.trash, label: app.t("O‘chirish", "Удалить"), id: "remove") {
                     app.remove(line)
                 }
             }
@@ -187,13 +187,12 @@ struct PaperStepper: View {
         )
     }
 
-    private func control(_ icon: String, label: String, id: String, action: @escaping () -> Void) -> some View {
+    private func control(_ icon: Icon, label: String, id: String, action: @escaping () -> Void) -> some View {
         Button {
             Haptics.tap()
             action()
         } label: {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .regular))
+            IconView(icon, size: 18)
                 .foregroundStyle(Theme.ink)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())

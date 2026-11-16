@@ -22,7 +22,7 @@ struct PayScreen: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 4) {
-                    IconButton(icon: "chevron.left") { path.removeLast() }
+                    IconButton(icon: .back) { path.removeLast() }
                         .padding(.leading, -12)
                         .accessibilityLabel(app.t("Savatga qaytish", "Назад к корзине"))
                         .accessibilityIdentifier("payBack")
@@ -252,8 +252,7 @@ struct SuccessScreen: View {
                     .padding(.top, 12)
 
                 HStack(spacing: 12) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 28, weight: .regular))
+                    IconView(.checkCircle, size: 28)
                     Text(paidInApp ? app.t("To‘landi", "Оплачено") : app.t("Xarid yakunlandi", "Покупка завершена"))
                         .font(.ui(28, .medium))
                         .accessibilityIdentifier("successTitle")

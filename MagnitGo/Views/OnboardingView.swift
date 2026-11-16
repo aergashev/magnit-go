@@ -26,7 +26,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 if step == .code {
-                    IconButton(icon: "chevron.left") { backToPhone() }
+                    IconButton(icon: .back) { backToPhone() }
                         .padding(.leading, -12)
                         .accessibilityLabel(app.t("Orqaga", "Назад"))
                         .accessibilityIdentifier("otpBack")

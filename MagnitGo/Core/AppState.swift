@@ -101,6 +101,8 @@ final class AppState {
 
     /// False until the first purchase: home explains how the app works until then.
     private(set) var hasShopped: Bool
+    /// The welcome pages are shown once, before sign-in.
+    private(set) var hasSeenWelcome: Bool
 
     var isSignedIn: Bool { phone != nil }
     /// Detected from location in production; the shopper can correct it, because
@@ -126,11 +128,12 @@ final class AppState {
         let defaults = UserDefaults.standard
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-resetState") {
-            ["lang", "phone", "method", "shopped", "store"].forEach(defaults.removeObject)
+            ["lang", "phone", "method", "shopped", "store", "welcomed"].forEach(defaults.removeObject)
         }
         lang = Lang(rawValue: defaults.string(forKey: "lang") ?? "") ?? .uz
         phone = defaults.string(forKey: "phone")
         hasShopped = defaults.bool(forKey: "shopped")
+        hasSeenWelcome = defaults.bool(forKey: "welcomed")
         storeName = defaults.string(forKey: "store") ?? AppState.stores[0]
         lastInAppMethod = PayMethod(rawValue: defaults.string(forKey: "method") ?? "") ?? .payme
         history = AppState.seedHistory()
@@ -252,6 +255,24 @@ final class AppState {
         usePoints = false
         basketCode = AppState.newCode()
         return receipt
+    }
+
+    func finishWelcome() {
+        hasSeenWelcome = true
+        UserDefaults.standard.set(true, forKey: "welcomed")
+    }
+
+    /// Products from past purchases, most recent first, each once.
+    var boughtBefore: [Product] {
+        var seen = Set<String>()
+        return history.flatMap(\.lines).map(\.product).filter { seen.insert($0.id).inserted }
+    }
+
+    func about(_ product: Product) -> String { lang == .uz ? product.aboutUz : product.aboutRu }
+
+    /// "14 990 so‘m" for a piece, "21 990 so‘m / kg" for goods sold by weight.
+    func unitPrice(_ product: Product) -> String {
+        product.weighted ? money(product.price) + " / " + t("kg", "кг") : money(product.price)
     }
 
     func setLang(_ value: Lang) {

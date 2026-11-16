@@ -11,6 +11,10 @@ struct Product: Identifiable, Hashable {
     /// Sold under mandatory digital marking (Asl Belgisi): every unit carries its own
     /// Data Matrix code, and that code, not the barcode, is what must be scanned.
     var marked = false
+    /// Image name in Assets.xcassets/Products.
+    var photo = ""
+    var aboutUz = ""
+    var aboutRu = ""
 }
 
 /// What a scanned code resolved to.
@@ -67,21 +71,45 @@ struct MarkingCode: Equatable {
 /// store the shopper is standing in.
 enum Catalog {
     static let pieces: [Product] = [
-        Product(id: "4780000000017", nameUz: "Sut 3,2%, 1 l", nameRu: "Молоко 3,2%, 1 л", price: 14_990),
-        Product(id: "4780000000024", nameUz: "Buxanka non", nameRu: "Хлеб «Буханка»", price: 4_500),
-        Product(id: "4780000000031", nameUz: "Tuxum C1, 10 dona", nameRu: "Яйца С1, 10 шт", price: 16_990),
-        Product(id: "4780000000048", nameUz: "Apelsin sharbati, 1 l", nameRu: "Сок апельсиновый, 1 л", price: 22_990, marked: true),
-        Product(id: "4780000000055", nameUz: "Gazsiz suv, 1,5 l", nameRu: "Вода без газа, 1,5 л", price: 5_990, marked: true),
-        Product(id: "4780000000062", nameUz: "Sutli shokolad, 90 g", nameRu: "Шоколад молочный, 90 г", price: 18_990),
-        Product(id: "4780000000079", nameUz: "Golland pishlog'i, 200 g", nameRu: "Сыр голландский, 200 г", price: 32_990),
-        Product(id: "4780000000086", nameUz: "Makaron, 400 g", nameRu: "Макароны, 400 г", price: 9_990),
-        Product(id: "4780000000093", nameUz: "Eruvchan qahva, 95 g", nameRu: "Кофе растворимый, 95 г", price: 54_990),
+        Product(id: "4780000000017", nameUz: "Sut 3,2%, 1 l", nameRu: "Молоко 3,2%, 1 л", price: 14_990, photo: "milk",
+                aboutUz: "Pasterizatsiyalangan sigir suti, yog‘liligi 3,2%. Ochilgandan keyin 0…+6 °C da 3 kungacha saqlang.",
+                aboutRu: "Пастеризованное коровье молоко жирностью 3,2%. После вскрытия храните при 0…+6 °C до 3 дней."),
+        Product(id: "4780000000024", nameUz: "Buxanka non", nameRu: "Хлеб «Буханка»", price: 4_500, photo: "bread",
+                aboutUz: "Bug‘doy unidan har kuni pishiriladigan non. Xona haroratida 3 kungacha saqlanadi.",
+                aboutRu: "Пшеничный хлеб ежедневной выпечки. Хранится при комнатной температуре до 3 дней."),
+        Product(id: "4780000000031", nameUz: "Tuxum C1, 10 dona", nameRu: "Яйца С1, 10 шт", price: 16_990, photo: "eggs",
+                aboutUz: "Birinchi toifali tovuq tuxumi, har biri 55–65 g. Sovutgichda saqlang.",
+                aboutRu: "Куриные яйца первой категории, 55–65 г каждое. Храните в холодильнике."),
+        Product(id: "4780000000048", nameUz: "Apelsin sharbati, 1 l", nameRu: "Сок апельсиновый, 1 л", price: 22_990, marked: true, photo: "juice",
+                aboutUz: "Apelsin sharbati, shakar qo‘shilmagan. Ochilgandan keyin sovutgichda 2 kungacha saqlang.",
+                aboutRu: "Апельсиновый сок без добавления сахара. После вскрытия храните в холодильнике до 2 дней."),
+        Product(id: "4780000000055", nameUz: "Gazsiz suv, 1,5 l", nameRu: "Вода без газа, 1,5 л", price: 5_990, marked: true, photo: "water",
+                aboutUz: "Gazsiz ichimlik suvi. Quyosh nuridan uzoqda saqlang.",
+                aboutRu: "Питьевая негазированная вода. Храните вдали от солнечного света."),
+        Product(id: "4780000000062", nameUz: "Sutli shokolad, 90 g", nameRu: "Шоколад молочный, 90 г", price: 18_990, photo: "chocolate",
+                aboutUz: "Sutli shokolad, kakao kamida 30%. Tarkibida sut va soya bor.",
+                aboutRu: "Молочный шоколад, какао не менее 30%. Содержит молоко и сою."),
+        Product(id: "4780000000079", nameUz: "Golland pishlog'i, 200 g", nameRu: "Сыр голландский, 200 г", price: 32_990, photo: "cheese",
+                aboutUz: "Yarim qattiq pishloq, yog‘liligi 45%. Sovutgichda, o‘ralgan holda saqlang.",
+                aboutRu: "Полутвёрдый сыр жирностью 45%. Храните в холодильнике в упаковке."),
+        Product(id: "4780000000086", nameUz: "Makaron, 400 g", nameRu: "Макароны, 400 г", price: 9_990, photo: "pasta",
+                aboutUz: "Qattiq bug‘doy navlaridan makaron. 8–10 daqiqa qaynatiladi.",
+                aboutRu: "Макароны из твёрдых сортов пшеницы. Варить 8–10 минут."),
+        Product(id: "4780000000093", nameUz: "Eruvchan qahva, 95 g", nameRu: "Кофе растворимый, 95 г", price: 54_990, photo: "coffee",
+                aboutUz: "Sublimatsiyalangan eruvchan qahva. Quruq joyda, yopiq idishda saqlang.",
+                aboutRu: "Сублимированный растворимый кофе. Храните в сухом месте, в закрытой банке."),
     ]
 
     static let weighted: [Product] = [
-        Product(id: "00017", nameUz: "Banan", nameRu: "Бананы", price: 21_990, weighted: true),
-        Product(id: "00023", nameUz: "Qizil olma", nameRu: "Яблоки красные", price: 16_990, weighted: true),
-        Product(id: "00031", nameUz: "Pomidor", nameRu: "Помидоры", price: 24_990, weighted: true),
+        Product(id: "00017", nameUz: "Banan", nameRu: "Бананы", price: 21_990, weighted: true, photo: "banana",
+                aboutUz: "Tarozida tortiladi: narxi 1 kg uchun. Tarozi yorlig‘ini skanerlang.",
+                aboutRu: "Взвешивается на весах: цена за 1 кг. Отсканируйте этикетку с весов."),
+        Product(id: "00023", nameUz: "Qizil olma", nameRu: "Яблоки красные", price: 16_990, weighted: true, photo: "apple",
+                aboutUz: "Tarozida tortiladi: narxi 1 kg uchun. Tarozi yorlig‘ini skanerlang.",
+                aboutRu: "Взвешивается на весах: цена за 1 кг. Отсканируйте этикетку с весов."),
+        Product(id: "00031", nameUz: "Pomidor", nameRu: "Помидоры", price: 24_990, weighted: true, photo: "tomato",
+                aboutUz: "Tarozida tortiladi: narxi 1 kg uchun. Tarozi yorlig‘ini skanerlang.",
+                aboutRu: "Взвешивается на весах: цена за 1 кг. Отсканируйте этикетку с весов."),
     ]
 
     /// What the demo buttons "scan" where there is no camera. Scale labels carry the
