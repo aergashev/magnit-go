@@ -1,6 +1,10 @@
 import SwiftUI
 import Observation
 
+// The shopper's session: language, phone, store, cashback and the basket in progress.
+// Stored state and the changes that touch persisted settings live here; basket edits
+// are in Entities/Basket, user actions in Features, checkout in Processes.
+
 enum Lang: String, CaseIterable {
     case uz, ru
 
@@ -21,74 +25,6 @@ enum PayMethod: String, CaseIterable, Hashable {
         case .uzum: return "Uzum"
         }
     }
-}
-
-struct BasketLine: Identifiable, Hashable {
-    let id: UUID
-    let product: Product
-    var qty: Int
-    /// Set for goods scanned from a scale label.
-    let grams: Int?
-    /// One full marking code per unit, for drinks sold under digital marking.
-    /// Their quantity is the number of codes scanned, never a typed number.
-    var marks: [String] = []
-
-    var isMarked: Bool { !marks.isEmpty }
-
-    var total: Int {
-        guard let grams else { return product.price * qty }
-        let exact = Double(product.price) * Double(grams) / 1000
-        return Int((exact / 10).rounded()) * 10
-    }
-}
-
-struct Receipt: Identifiable, Hashable {
-    let id: UUID
-    let date: Date
-    let lines: [BasketLine]
-    let subtotal: Int
-    let pointsUsed: Int
-    let total: Int
-    let earned: Int
-    let method: PayMethod
-    let code: String
-    var store = AppState.stores[0]
-
-    var itemCount: Int { lines.reduce(0) { $0 + $1.qty } }
-}
-
-/// Cashback rate by lifetime spend.
-struct Tier: Equatable {
-    let rate: Double
-    let threshold: Int
-
-    static let all = [
-        Tier(rate: 0.01, threshold: 0),
-        Tier(rate: 0.02, threshold: 1_000_000),
-        Tier(rate: 0.03, threshold: 5_000_000),
-    ]
-}
-
-enum ScanResult {
-    case added(BasketLine)
-    case unknown
-    /// The barcode of a drink that has to be sold by its marking code.
-    case needsMark(Product)
-    /// This exact unit is already in the basket.
-    case duplicateMark
-}
-
-struct RemovedLine: Equatable {
-    let line: BasketLine
-    let index: Int
-    let token = UUID()
-}
-
-enum Route: Hashable {
-    /// The receipt with its QR: shown to the cashier, or paid in the app from here.
-    case pay
-    case paying(PayMethod)
-    case success(Receipt)
 }
 
 @Observable
@@ -157,104 +93,27 @@ final class AppState {
 
     var remainingToNextTier: Int { max(0, (nextTier?.threshold ?? lifetimeSpend) - lifetimeSpend) }
 
-    // MARK: Basket actions
+    // MARK: Session changes
 
-    @discardableResult
-    func scan(_ code: String) -> ScanResult {
-        guard let item = Catalog.resolve(code) else { return .unknown }
-
-        // A marked drink is sold unit by unit: the till needs each bottle's own code.
-        if item.product.marked, item.mark == nil { return .needsMark(item.product) }
-        if let mark = item.mark, basket.contains(where: { $0.marks.contains(mark) }) {
-            return .duplicateMark
-        }
-        removed = nil
-
-        // Another unit of a product already in the basket joins its line.
-        if item.grams == nil,
-           let index = basket.firstIndex(where: { $0.product == item.product && $0.grams == nil }) {
-            var line = basket.remove(at: index)
-            line.qty += 1
-            if let mark = item.mark { line.marks.append(mark) }
-            basket.insert(line, at: 0)
-            lastAddedID = line.id
-            return .added(line)
-        }
-
-        let line = BasketLine(id: UUID(), product: item.product, qty: 1, grams: item.grams,
-                              marks: item.mark.map { [$0] } ?? [])
-        basket.insert(line, at: 0)
-        lastAddedID = line.id
-        return .added(line)
-    }
-
-    /// Not available for marked drinks: another bottle means another code to scan.
-    func increment(_ line: BasketLine) {
-        guard let index = basket.firstIndex(where: { $0.id == line.id }), !basket[index].isMarked else { return }
-        basket[index].qty += 1
-    }
-
-    /// Going below one removes the line. No confirmation: removal is undoable.
-    func decrement(_ line: BasketLine) {
-        guard let index = basket.firstIndex(where: { $0.id == line.id }) else { return }
-        if basket[index].qty > 1 {
-            basket[index].qty -= 1
-            if basket[index].isMarked { basket[index].marks.removeLast() }
-        } else {
-            remove(line)
-        }
-    }
-
-    func remove(_ line: BasketLine) {
-        guard let index = basket.firstIndex(where: { $0.id == line.id }) else { return }
-        basket.remove(at: index)
-        let entry = RemovedLine(line: line, index: index)
-        removed = entry
-        if lastAddedID == line.id { lastAddedID = basket.first?.id }
-
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(7))
-            if self?.removed?.token == entry.token { self?.removed = nil }
-        }
-    }
-
-    func undoRemove() {
-        guard let entry = removed else { return }
-        basket.insert(entry.line, at: min(entry.index, basket.count))
-        lastAddedID = entry.line.id
-        removed = nil
-    }
-
-    func completePurchase(method: PayMethod) -> Receipt {
-        let receipt = Receipt(
-            id: UUID(),
-            date: .now,
-            // Oldest first, the order a printed receipt has.
-            lines: Array(basket.reversed()),
-            subtotal: subtotal,
-            pointsUsed: pointsApplied,
-            total: total,
-            earned: cashbackEarned,
-            method: method,
-            code: basketCode,
-            store: storeName
-        )
-        points += receipt.earned - receipt.pointsUsed
-        lifetimeSpend += receipt.total
-        history.insert(receipt, at: 0)
+    /// Recorded after the first purchase: home stops explaining how the app works.
+    func markShopped() {
         hasShopped = true
         UserDefaults.standard.set(true, forKey: "shopped")
-        if method != .cashier {
-            lastInAppMethod = method
-            UserDefaults.standard.set(method.rawValue, forKey: "method")
-        }
+    }
 
+    /// The in-app method used last comes first next time.
+    func rememberInAppMethod(_ method: PayMethod) {
+        lastInAppMethod = method
+        UserDefaults.standard.set(method.rawValue, forKey: "method")
+    }
+
+    /// An empty basket with a new receipt number, after a purchase.
+    func startNewBasket() {
         basket = []
         lastAddedID = nil
         removed = nil
         usePoints = false
         basketCode = AppState.newCode()
-        return receipt
     }
 
     func finishWelcome() {
@@ -388,7 +247,7 @@ final class AppState {
         return formatter
     }()
 
-    private static func newCode() -> String {
+    static func newCode() -> String {
         String(format: "%08d", Int.random(in: 10_000_000...99_999_999))
     }
 

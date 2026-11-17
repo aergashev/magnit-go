@@ -16,8 +16,8 @@ struct WelcomeView: View {
     private static let pages = [
         Page(photo: "welcome-1",
              titleUz: "Javonning o‘zida skanerlang", titleRu: "Сканируйте прямо у полки",
-             bodyUz: "Mahsulotni savatga solayotganda shtrix-kodini telefon bilan o‘qiting. Nomi va narxi darhol chiqadi.",
-             bodyRu: "Кладя товар в корзину, считайте его штрихкод телефоном. Название и цена появятся сразу."),
+             bodyUz: "Shtrix-kodni telefon bilan o‘qiting: nomi, narxi va tarkibi chiqadi. Keyin uni savatga qo‘shasiz.",
+             bodyRu: "Считайте штрихкод телефоном: появятся название, цена и состав. Затем добавьте товар в корзину."),
         Page(photo: "welcome-2",
              titleUz: "Chek telefoningizda", titleRu: "Чек в вашем телефоне",
              bodyUz: "Har bir mahsulot chekka yoziladi. Miqdorni o‘zgartirish yoki mahsulotni o‘chirish mumkin.",
@@ -111,24 +111,5 @@ struct WelcomeView: View {
         .padding(.top, 16)
         .padding(.bottom, 8)
         .background(Theme.bg)
-    }
-}
-
-/// Where you are among a few pages: the current one is a longer pill.
-struct PageDots: View {
-    let count: Int
-    let current: Int
-
-    var body: some View {
-        HStack(spacing: 6) {
-            ForEach(0..<count, id: \.self) { index in
-                Capsule()
-                    .fill(index == current ? Theme.text : Theme.text3.opacity(0.5))
-                    .frame(width: index == current ? 20 : 8, height: 8)
-            }
-        }
-        .animation(Theme.ease, value: current)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(current + 1) / \(count)")
     }
 }

@@ -159,8 +159,8 @@ struct MainView: View {
             SectionLabel(app.t("Qanday ishlaydi", "Как это работает"))
             step(1,
                  app.t("Mahsulotlarni skanerlang", "Сканируйте товары"),
-                 app.t("Savatga solayotganda shtrix-kodini telefon bilan o‘qiting",
-                       "Кладя товар в корзину, считайте его штрихкод телефоном"))
+                 app.t("Shtrix-kodini telefon bilan o‘qiting, mahsulotni ko‘rib savatga qo‘shing",
+                       "Считайте штрихкод телефоном, посмотрите товар и добавьте его в корзину"))
             step(2,
                  app.t("Kassirga bitta QR ko‘rsating", "Покажите кассиру один QR"),
                  app.t("Hamma mahsulot kassaga o‘tadi. Yoki ilovada Payme, Click, Uzum orqali to‘lang",
@@ -306,95 +306,4 @@ struct MainView: View {
     }
 
     private func percent(_ tier: Tier) -> Int { Int(tier.rate * 100) }
-}
-
-struct StoreSheet: View {
-    @Environment(AppState.self) private var app
-    @Environment(\.dismiss) private var dismiss
-
-    private var locked: Bool { app.itemCount > 0 }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(app.t("Do‘konni tanlang", "Выберите магазин"))
-                .font(.ui(28, .medium))
-                .padding(.top, 32)
-            // Says why the choice matters, or why it is unavailable right now.
-            Text(locked
-                 ? app.t("Savatda mahsulot bor. Do‘konni o‘zgartirish uchun avval xaridni yakunlang yoki savatni bo‘shating.",
-                         "В корзине есть товары. Чтобы сменить магазин, завершите покупку или очистите корзину.")
-                 : app.t("Narxlar do‘konga qarab farq qiladi, shuning uchun hozir turgan do‘koningizni tanlang.",
-                         "Цены зависят от магазина, поэтому выберите тот, в котором вы сейчас."))
-                .font(.ui(15))
-                .foregroundStyle(Theme.text2)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 8)
-                .padding(.bottom, 12)
-
-            ForEach(AppState.stores, id: \.self) { store in
-                Button {
-                    app.setStore(store)
-                    dismiss()
-                } label: {
-                    HStack {
-                        Text(store).font(.ui(16))
-                        Spacer()
-                        if store == app.storeName {
-                            IconView(.check, size: 18)
-                        }
-                    }
-                    .frame(minHeight: 52)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .disabled(locked)
-                .opacity(locked && store != app.storeName ? 0.4 : 1)
-                .accessibilityIdentifier("store-\(store)")
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, Theme.page)
-        .foregroundStyle(Theme.text)
-        .preferredColorScheme(.dark)
-    }
-}
-
-struct ProfileSheet: View {
-    @Environment(AppState.self) private var app
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(app.t("Profil", "Профиль"))
-                .font(.ui(28, .medium))
-                .padding(.top, 32)
-
-            VStack(alignment: .leading, spacing: 2) {
-                SectionLabel(app.t("Telefon raqami", "Номер телефона"))
-                Text(app.formattedPhone()).font(.ui(17).monospacedDigit())
-            }
-            .padding(.top, 24)
-
-            HStack {
-                Text(app.t("Ilova tili", "Язык приложения")).font(.ui(16))
-                Spacer()
-                LanguageSwitch()
-            }
-            .frame(minHeight: 56)
-            .padding(.top, 8)
-
-            Spacer(minLength: 16)
-
-            Button(app.t("Hisobdan chiqish", "Выйти из аккаунта")) {
-                dismiss()
-                app.signOut()
-            }
-            .buttonStyle(SecondaryButtonStyle())
-            .accessibilityIdentifier("signOut")
-        }
-        .padding(.horizontal, Theme.page)
-        .padding(.bottom, 8)
-        .foregroundStyle(Theme.text)
-        .preferredColorScheme(.dark)
-    }
 }

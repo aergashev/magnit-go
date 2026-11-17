@@ -2,14 +2,24 @@ import SwiftUI
 
 /// One product: its photo, name, price, what it is and how it is scanned.
 ///
-/// Opened from a basket line it edits that line, with the same rules the cheque has:
-/// marked drinks have no plus, weighed goods can only be removed. Opened from home it
-/// has no "add" button, because nothing reaches the basket without a scan: the
-/// marking code or the scale label is what the till sells.
+/// - Scanned: opens straight after a scan and asks whether to add it, and how many.
+/// - In the basket: edits that line, with the cheque's rules (marked drinks have no
+///   plus, weighed goods can only be removed).
+/// - Browsing from home: no "add", because nothing reaches the basket without a scan;
+///   the marking code or the scale label is what the till sells.
 struct ProductScreen: View {
     enum Mode: Equatable {
+        case scanned(ScannedItem)
         case inBasket(UUID)
         case browsing
+
+        /// Presented as a sheet, so it closes rather than going back.
+        var isSheet: Bool {
+            if case .inBasket = self { return false }
+            return true
+        }
+
+        var isInBasket: Bool { !isSheet }
     }
 
     @Environment(AppState.self) private var app
@@ -17,9 +27,17 @@ struct ProductScreen: View {
     let mode: Mode
     let close: () -> Void
     var startScanning: () -> Void = {}
+    /// Scanned mode: the shopper chose to add this many.
+    var add: (Int) -> Void = { _ in }
 
     @State private var expanded = false
     @State private var truncated = false
+    @State private var qty = 1
+
+    private var scanned: ScannedItem? {
+        if case .scanned(let item) = mode { return item }
+        return nil
+    }
 
     private var line: BasketLine? {
         guard case .inBasket(let id) = mode else { return nil }
@@ -43,7 +61,7 @@ struct ProductScreen: View {
         .onChange(of: line == nil) { _, gone in
             // The line was removed here (or undone elsewhere): back to the basket,
             // where the undo bar is.
-            if gone, mode != .browsing { close() }
+            if gone, mode.isInBasket { close() }
         }
         .accessibilityIdentifier("productScreen")
     }
@@ -62,10 +80,10 @@ struct ProductScreen: View {
                     .ignoresSafeArea(edges: .top)
             )
             .overlay(alignment: .topLeading) {
-                IconButton(icon: mode == .browsing ? .close : .back, filled: true, action: close)
+                IconButton(icon: mode.isSheet ? .close : .back, filled: true, action: close)
                     .padding(.leading, 16)
                     .padding(.top, 8)
-                    .accessibilityLabel(mode == .browsing ? app.t("Yopish", "Закрыть") : app.t("Savatga qaytish", "Назад к корзине"))
+                    .accessibilityLabel(mode.isSheet ? app.t("Yopish", "Закрыть") : app.t("Savatga qaytish", "Назад к корзине"))
                     .accessibilityIdentifier("productClose")
             }
     }
@@ -109,7 +127,10 @@ struct ProductScreen: View {
                 }
             }
 
-            fact(app.t("Qanday skanerlanadi", "Как сканировать"), howToScan)
+            // Already scanned: no need to say how.
+            if scanned == nil {
+                fact(app.t("Qanday skanerlanadi", "Как сканировать"), howToScan)
+            }
             fact(product.weighted ? app.t("Tarozi kodi (PLU)", "Код весов (PLU)") : app.t("Shtrix-kod", "Штрихкод"),
                  product.id)
         }
@@ -276,6 +297,8 @@ struct ProductScreen: View {
                         .accessibilityIdentifier("productDone")
                 }
                 .animation(Theme.easeFast, value: line.qty)
+            } else if let item = scanned {
+                scannedBar(item)
             } else if mode == .browsing {
                 Button {
                     Haptics.tap()
@@ -296,5 +319,108 @@ struct ProductScreen: View {
         .padding(.top, 12)
         .padding(.bottom, 8)
         .background(Theme.bg)
+    }
+
+    // MARK: Scanned
+
+    /// After a scan: what will be added and what it costs, how many, one button to add
+    /// it, and a visible way not to.
+    private func scannedBar(_ item: ScannedItem) -> some View {
+        let count = (item.grams != nil || item.mark != nil) ? 1 : qty
+        let preview = BasketLine(id: item.id, product: item.product, qty: count, grams: item.grams)
+        let already = app.quantityInBasket(item.product)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    SectionLabel(app.t("Savatga qo‘shiladi", "Добавится в корзину"))
+                    Text(app.detail(preview))
+                        .font(.ui(15).monospacedDigit())
+                        .foregroundStyle(Theme.text2)
+                }
+                Spacer(minLength: 8)
+                Text(app.money(preview.total))
+                    .font(.ui(20, .medium).monospacedDigit())
+                    .contentTransition(.numericText(value: Double(preview.total)))
+                    .accessibilityIdentifier("addTotal")
+            }
+            .accessibilityElement(children: .combine)
+
+            // What was read, and what is already there.
+            if item.grams != nil {
+                note(app.t("Og‘irlik tarozi yorlig‘idan olindi", "Вес взят с этикетки весов"))
+            } else if item.mark != nil {
+                note(app.t("Shu shishaning markirovka kodi o‘qildi. Yana bir shisha uchun uning kodini skanerlang",
+                           "Считан код маркировки этой бутылки. Для ещё одной отсканируйте и её код"))
+            }
+            if already > 0 {
+                note(app.t("Savatda allaqachon \(already) ta bor, bular ularga qo‘shiladi",
+                           "В корзине уже \(already) шт, эти добавятся к ним"))
+            }
+
+            HStack(spacing: 12) {
+                if item.grams == nil, item.mark == nil {
+                    QuantityPicker(qty: $qty)
+                        .fixedSize()
+                }
+                Button(app.t("Savatga qo‘shish", "В корзину")) {
+                    add(count)
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .accessibilityIdentifier("addToBasket")
+            }
+            .animation(Theme.easeFast, value: qty)
+
+            Button(app.t("Qo‘shmaslik", "Не добавлять"), action: close)
+                .font(.ui(15, .medium))
+                .foregroundStyle(Theme.text2)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
+                .accessibilityIdentifier("dontAdd")
+        }
+    }
+
+    private func note(_ text: String) -> some View {
+        Text(text)
+            .font(.ui(13))
+            .foregroundStyle(Theme.text3)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// How many to add, 1…99, before anything is in the basket. Looks like the line stepper.
+private struct QuantityPicker: View {
+    @Environment(AppState.self) private var app
+    @Binding var qty: Int
+
+    var body: some View {
+        HStack(spacing: 0) {
+            control(.minus, enabled: qty > 1, label: app.t("Kamaytirish", "Убавить"), id: "pickMinus") { qty -= 1 }
+            Text("\(qty)")
+                .font(.ui(17, .medium).monospacedDigit())
+                .frame(minWidth: 24)
+                .contentTransition(.numericText(value: Double(qty)))
+                .accessibilityIdentifier("pickQty")
+            control(.plus, enabled: qty < 99, label: app.t("Ko‘paytirish", "Добавить"), id: "pickPlus") { qty += 1 }
+        }
+        .frame(height: 52)
+        .padding(.horizontal, 4)
+        .background(Capsule().fill(Theme.raised))
+    }
+
+    private func control(_ icon: Icon, enabled: Bool, label: String, id: String, action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.tap()
+            action()
+        } label: {
+            IconView(icon, size: 18)
+                .foregroundStyle(Theme.text.opacity(enabled ? 1 : 0.3))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(id)
     }
 }

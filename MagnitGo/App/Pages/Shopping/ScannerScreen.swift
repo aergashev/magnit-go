@@ -1,49 +1,8 @@
 import SwiftUI
+import UIKit
 
-/// Scanner, then the receipt with its QR, then done. One stack, so "back" always
-/// returns to a basket that can still be edited.
-struct ShoppingFlow: View {
-    @Environment(AppState.self) private var app
-    let close: () -> Void
-    @State private var path: [Route] = []
-
-    var body: some View {
-        NavigationStack(path: $path) {
-            ScannerScreen(close: close, checkout: { path.append(.pay) })
-                .toolbar(.hidden, for: .navigationBar)
-                .navigationDestination(for: Route.self) { route in
-                    Group {
-                        switch route {
-                        case .pay: PayScreen(path: $path)
-                        case .paying(let method): PayingScreen(method: method, path: $path)
-                        case .success(let receipt): SuccessScreen(receipt: receipt, close: close)
-                        }
-                    }
-                    .toolbar(.hidden, for: .navigationBar)
-                    .navigationBarBackButtonHidden()
-                }
-        }
-        .onAppear {
-            // Debug shortcuts for checking screens: -demoBasket fills a basket,
-            // -route <pay|success> opens that screen directly.
-            let args = ProcessInfo.processInfo.arguments
-            guard path.isEmpty else { return }
-            if args.contains("-demoBasket"), app.basket.isEmpty {
-                Catalog.demoShelf.prefix(6).forEach { app.scan(Catalog.demoCode($0)) }
-                app.scan(Catalog.demoShelf[0])
-                app.scan(Catalog.demoCode(Catalog.demoShelf[2]))
-            }
-            if let index = args.firstIndex(of: "-route"), index + 1 < args.count {
-                switch args[index + 1] {
-                case "pay": path = [.pay]
-                case "success": path = [.success(app.completePurchase(method: .payme))]
-                default: break
-                }
-            }
-        }
-    }
-}
-
+/// The camera, the line just added, and the way to the basket and checkout. A scan
+/// opens the product's window first; it joins the basket only when the shopper adds it.
 struct ScannerScreen: View {
     @Environment(AppState.self) private var app
     let close: () -> Void
@@ -75,6 +34,8 @@ struct ScannerScreen: View {
     @State private var cameraUnavailable = false
     @State private var basketOpen = false
     @State private var checkoutAfterDismiss = false
+    /// A product just scanned, waiting for the shopper to add it or not.
+    @State private var pending: ScannedItem?
 
     private var usesDemoCodes: Bool {
         #if targetEnvironment(simulator) || targetEnvironment(macCatalyst)
@@ -131,6 +92,16 @@ struct ScannerScreen: View {
             BasketSheet(checkout: {
                 checkoutAfterDismiss = true
                 basketOpen = false
+            })
+            .environment(app)
+            .preferredColorScheme(.dark)
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Theme.bg)
+        }
+        .sheet(item: $pending) { item in
+            ProductScreen(product: item.product, mode: .scanned(item), close: { pending = nil }, add: { qty in
+                confirm(item, qty: qty)
             })
             .environment(app)
             .preferredColorScheme(.dark)
@@ -236,8 +207,8 @@ struct ScannerScreen: View {
     /// Stands in for the camera where there is none: tap a name to "scan" its code.
     private var demoCodes: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(app.t("Demo: kamera o‘rniga mahsulot nomini bosing, u skanerlangandek qo‘shiladi",
-                       "Демо: вместо камеры нажмите на товар, он добавится как отсканированный"))
+            Text(app.t("Demo: kamera o‘rniga mahsulot nomini bosing, u skanerlangandek ochiladi",
+                       "Демо: вместо камеры нажмите на товар, он откроется как отсканированный"))
                 .font(.ui(12))
                 .foregroundStyle(Theme.text3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -282,20 +253,18 @@ struct ScannerScreen: View {
     // MARK: Scanning
 
     private func handle(_ code: String) {
-        guard !basketOpen else { return }
-        switch app.scan(code) {
-        case .added(let line):
-            // Heard, felt and read: a beep, a haptic, the frame closes in, the name
-            // appears where the shopper is looking, and the line prints below.
+        // One thing at a time: no scans while the basket or a product window is open.
+        guard !basketOpen, pending == nil else { return }
+        switch app.check(code) {
+        case .found(let item):
+            // Heard and felt: a beep, a tap, the frame closes in, then the product
+            // window opens and asks whether to add it.
             Sounds.scanned()
-            Haptics.success()
+            Haptics.tap()
             captured = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { captured = false }
-            let name = app.name(line.product)
-            post(.added(line.qty > 1
-                        ? app.t("\(name) qo‘shildi, endi \(line.qty) ta", "\(name): добавлено, теперь \(line.qty) шт")
-                        : app.t("\(name) qo‘shildi", "\(name): добавлено")),
-                 for: 1.8)
+            notice = nil
+            pending = item
         case .unknown:
             show(app.t("Bu kod topilmadi. Qayta skanerlang yoki xodimdan so‘rang",
                        "Код не найден. Отсканируйте ещё раз или спросите сотрудника"))
@@ -306,6 +275,19 @@ struct ScannerScreen: View {
         case .duplicateMark:
             show(app.t("Bu shisha allaqachon chekda", "Эта бутылка уже в чеке"))
         }
+    }
+
+    /// The shopper pressed "add" in the product window.
+    private func confirm(_ item: ScannedItem, qty: Int) {
+        let line = app.add(item, qty: qty)
+        pending = nil
+        Haptics.success()
+        // The name appears where the shopper is looking, and the line prints below.
+        let name = app.name(line.product)
+        post(.added(line.qty > 1
+                    ? app.t("\(name) qo‘shildi, endi \(line.qty) ta", "\(name): добавлено, теперь \(line.qty) шт")
+                    : app.t("\(name) qo‘shildi", "\(name): добавлено")),
+             for: 1.8)
     }
 
     private func show(_ message: String) {
@@ -397,8 +379,8 @@ struct ScanSlip: View {
             } else {
                 Text(app.t("Savat bo‘sh", "Корзина пуста"))
                     .font(.paper(16, .medium))
-                Text(app.t("Birinchi mahsulotni skanerlang: nomi va narxi shu yerda chiqadi",
-                           "Отсканируйте первый товар: название и цена появятся здесь"))
+                Text(app.t("Mahsulotni skanerlang va savatga qo‘shing: u shu yerda chiqadi",
+                           "Отсканируйте товар и добавьте в корзину: он появится здесь"))
                     .font(.paper(14))
                     .foregroundStyle(Theme.inkDim)
                     .padding(.top, 4)
@@ -408,100 +390,5 @@ struct ScanSlip: View {
         .clipped()
         .animation(Theme.ease, value: app.lastAddedID)
         .animation(Theme.ease, value: app.basket.isEmpty)
-    }
-}
-
-/// A basket line opened in its product window. The product travels with the route so
-/// the window can still say what it was after the line is removed.
-struct OpenedLine: Hashable {
-    let id: UUID
-    let product: Product
-}
-
-/// The whole receipt so far, every line still editable. A line's photo or name opens
-/// its product window on top.
-struct BasketSheet: View {
-    @Environment(AppState.self) private var app
-    @Environment(\.dismiss) private var dismiss
-    let checkout: () -> Void
-    @State private var path: [OpenedLine] = []
-
-    var body: some View {
-        NavigationStack(path: $path) {
-            receipt
-                .toolbar(.hidden, for: .navigationBar)
-                .navigationDestination(for: OpenedLine.self) { opened in
-                    ProductScreen(product: opened.product, mode: .inBasket(opened.id), close: {
-                        if !path.isEmpty { path.removeLast() }
-                    })
-                    .toolbar(.hidden, for: .navigationBar)
-                }
-        }
-    }
-
-    private var receipt: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(app.t("Savat", "Корзина"))
-                    .font(.ui(28, .medium))
-                    .foregroundStyle(Theme.text)
-                Text(app.t("Miqdorni o‘zgartiring yoki mahsulotni o‘chiring. Mahsulot haqida bilish uchun nomini bosing",
-                           "Измените количество или удалите товар. Нажмите на название, чтобы узнать о товаре"))
-                    .font(.ui(15))
-                    .foregroundStyle(Theme.text2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 12)
-
-                Paper(tornTop: true) {
-                    ReceiptHeader(detail: app.itemsText(app.itemCount))
-                    ReceiptRule().padding(.vertical, 12)
-
-                    if app.basket.isEmpty {
-                        Text(app.t("Savat bo‘sh", "Корзина пуста")).font(.paper(16))
-                    } else {
-                        // Newest first: the item just scanned is the one most likely
-                        // to need fixing.
-                        VStack(spacing: 8) {
-                            ForEach(app.basket) { line in
-                                EditableLine(line: line, open: {
-                                    Haptics.tap()
-                                    path.append(OpenedLine(id: line.id, product: line.product))
-                                })
-                            }
-                        }
-                        ReceiptRule().padding(.vertical, 12)
-                        VStack(spacing: 8) {
-                            ReceiptRow(label: app.t("Jami", "Итого"), value: app.money(app.subtotal), total: true)
-                            ReceiptRow(label: app.t("Keshbek qo‘shiladi", "Начислим кешбэк"),
-                                       value: "+" + app.pointsText(app.cashbackEarned))
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, Theme.page)
-            .padding(.top, 32)
-            .padding(.bottom, 16)
-            .animation(Theme.ease, value: app.basket.map(\.id))
-        }
-        .scrollIndicators(.hidden)
-        .background(Theme.bg.ignoresSafeArea())
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 8) {
-                UndoBar()
-                if app.basket.isEmpty {
-                    Button(app.t("Skanerlashga qaytish", "Вернуться к сканеру")) { dismiss() }
-                        .buttonStyle(SecondaryButtonStyle())
-                } else {
-                    Button(app.t("To‘lovga o‘tish", "К оплате"), action: checkout)
-                        .buttonStyle(PrimaryButtonStyle())
-                        .accessibilityIdentifier("sheetCheckout")
-                }
-            }
-            .padding(.horizontal, Theme.page)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
-            .background(Theme.bg)
-            .animation(Theme.ease, value: app.removed)
-        }
     }
 }
